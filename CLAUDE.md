@@ -59,10 +59,42 @@ For any visual design change: list the files to be changed, describe the outcome
 Do exactly what is asked. Nothing more, nothing less. If something is unclear, ask before starting.
 
 
+**Rule 6: Explain the plan before starting**
+Before making changes, briefly explain the plan and wait for approval.
+
+The plan must include:
+- What will be changed
+- Which files are likely to be changed
+- What will not be changed
+- Any risks, assumptions, or unclear points
+
+Keep the plan short. The goal is to prevent Claude Code from doing extra work, touching unrelated files, or building something different from what was requested.
+
+Do not start editing, creating, deleting, installing packages, or running migrations until the plan is approved, unless the user explicitly says to proceed without approval.
+
+
 ---
 
 
 # How to Respond
+
+
+## Topic: Plan Before Work Starts
+
+When the user asks Claude Code to do something, Claude Code must explain the plan before starting. This protects the project from accidental changes.
+
+The plan should be short and practical:
+- Goal: what the user asked for
+- Files: which files Claude Code expects to touch
+- Approach: how Claude Code will do it
+- Boundaries: what Claude Code will not change
+- Approval: ask the user to approve before any changes are made
+
+Example:
+```text
+Plan before I start:
+I will update the pricing section only. I expect to change app/page.tsx and components/pricing-card.tsx. I will not touch authentication, database code, or global styling. If this looks right, approve and I will continue.
+```
 
 
 Always explain like you're talking to a 15 year old with no coding background.
@@ -96,6 +128,66 @@ When a task involves external tools or technical elements that a non-coder would
 - **Deployment:** Vercel
 - **Styling:** Tailwind CSS
 - **Key libraries:** `@supabase/supabase-js`, `@supabase/ssr`
+
+
+---
+
+
+# MCP Tools
+
+Use MCP tools when they make the work safer, faster, or more accurate. Do not use an MCP just because it exists. Explain when a tool is being used and why, in plain English.
+
+## shadcn/ui MCP
+
+Use the shadcn/ui MCP when working with UI components, blocks, forms, cards, dialogs, navigation, dashboards, tables, or other interface building blocks.
+
+Rules:
+- Prefer existing shadcn/ui components before building custom UI from scratch.
+- Use it to search, inspect, and install components from the relevant registry.
+- Keep components clean, accessible, and consistent with the current project style.
+- Do not overwrite existing component customizations without explaining the change first.
+- After installing or changing components, check the affected files and run the relevant build/test command.
+
+## Magic MCP
+
+Use Magic MCP when the task is visual, design-heavy, or needs a polished frontend component quickly.
+
+Good use cases:
+- Landing page sections
+- Hero sections
+- Pricing sections
+- Feature cards
+- Dashboards
+- Empty states
+- Onboarding screens
+- Modern component variations
+
+Rules:
+- Use Magic MCP for inspiration or component generation, but still adapt the result to this project.
+- Do not paste in a design blindly. Match the existing tech stack, Tailwind setup, spacing, typography, and brand direction.
+- Keep the code simple and readable.
+- Remove unnecessary dependencies or effects.
+- Make sure the result works with Next.js App Router and TypeScript.
+
+## Playwright MCP
+
+Use Playwright MCP when a change needs browser verification.
+
+Good use cases:
+- Testing pages after visual changes
+- Checking forms and buttons
+- Verifying navigation
+- Confirming responsive layouts
+- Catching console errors
+- Testing login/logout flows when auth is involved
+- Checking that a page actually works in the browser before saying it is done
+
+Rules:
+- Prefer Playwright MCP for real browser checks instead of only guessing from code.
+- Use it after starting the dev server when practical.
+- Check the happy path and the obvious error path.
+- Report what was tested and what was not tested.
+- Never claim the browser was tested if Playwright MCP or a manual browser check was not actually run.
 
 
 ---
@@ -224,81 +316,213 @@ Never say "done" if:
 ---
 
 
-# Pattern: Scroll-Driven Video Animation (Apple-style)
+# Pattern: Scroll-Driven Image Sequence Animation
 
+Use this pattern when a page needs a premium scroll-controlled hero animation where the visual changes frame-by-frame as the user scrolls. This is often used for product launches, restaurants, portfolios, landing pages, and cinematic brand sections.
 
-When you want a video that plays frame-by-frame as the user scrolls (like Apple's MacBook product pages), **never** use a `<video>` element with `video.currentTime` driven by scroll. Setting `currentTime` forces the browser to seek inside the video file, which takes 250–500ms per seek because video codecs only store full frames at keyframes — the result is hacky and visibly choppy on every device.
+This pattern must stay project-agnostic. Do not hard-code project names, component paths, brand colors, section names, or frame counts. Claude Code must adapt the filenames, folders, styling, copy, and layout to the current project after reading `CLAUDE.md`, `project_specs.md`, and the existing files.
 
+## When to use it
 
-## The correct recipe
+Use this pattern when:
+- The animation is important to the page experience.
+- The video is short, usually 3–10 seconds.
+- The page should feel premium, cinematic, and controlled by scroll.
+- The first frame and final frame both look good as still images.
 
+Do not use this pattern when:
+- A normal autoplay background video is enough.
+- The asset is long, heavy, or not visually important.
+- The user needs fast content-first loading more than cinematic animation.
+- The user has requested a very simple page.
 
-**Use a series of pre-extracted JPEG frames + a `<canvas>` + `requestAnimationFrame`.** All frames are decoded into memory once on page load, then drawn instantly to canvas as the scroll position changes. Smooth at 60/120/144 Hz without any seeking delay.
+## Core rule
 
+Do not drive a `<video>` element with `video.currentTime` on scroll unless there is a strong reason and it has been tested on real devices. Seeking inside a compressed video can feel delayed or choppy because the browser must jump between encoded video frames.
 
-### Step 1 — Extract frames from the video with ffmpeg
+For the smooth Apple-style effect, use:
 
+**pre-extracted image frames + `<canvas>` + `requestAnimationFrame`**
 
-Install ffmpeg once via winget on Windows:
-```
+The browser loads and decodes the frames once, then the canvas draws the right frame when scroll progress changes. This usually feels smoother than repeatedly seeking a video.
+
+## Recommended implementation
+
+### Step 1 — Decide the asset strategy
+
+Before coding, define this in `project_specs.md`:
+- Where the source video lives.
+- Where extracted frames should be stored, for example `public/scroll-sequence/[section-name]/`.
+- The expected frame count.
+- Whether the canvas is only for the hero or continues as a fixed background behind later sections.
+- The mobile fallback.
+- The reduced-motion fallback.
+- The target payload budget.
+
+Good default budgets:
+- Premium hero: keep the frame sequence around 10–25 MB when possible.
+- Mobile: use fewer frames, smaller images, or a static fallback.
+- Long pages: avoid loading multiple heavy frame sequences at once.
+
+### Step 2 — Extract frames with ffmpeg
+
+Install ffmpeg if it is not already installed.
+
+Windows:
+```bash
 winget install --id=Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements --silent
 ```
 
-
-Probe the video to find duration and native frame rate:
-```
-ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,r_frame_rate,nb_frames -of default=noprint_wrappers=1 path/to/video.mp4
-```
-
-
-Extract every native frame as JPEG (quality 3 = high, ~150 KB per frame at 1080p):
-```
-ffmpeg -i path/to/video.mp4 -q:v 3 public/frames/frame%04d.jpg -y
+macOS:
+```bash
+brew install ffmpeg
 ```
 
+Check the source video:
+```bash
+ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,r_frame_rate,nb_frames -of default=noprint_wrappers=1 path/to/source-video.mp4
+```
 
-For a short hero video (5–10 seconds at 24fps = ~120–240 frames) the total payload is 15–30 MB. Acceptable for premium hero sections; users wait 1–2 seconds on first load, then it's cached.
+Extract frames. Start with JPEG for photographic footage:
+```bash
+mkdir -p public/scroll-sequence/hero
+ffmpeg -i path/to/source-video.mp4 -vf fps=24 -q:v 4 public/scroll-sequence/hero/frame%04d.jpg -y
+```
 
+Use these rules:
+- Use `fps=24` as a good default for smooth scroll-controlled motion.
+- Use `fps=12` or `fps=15` for mobile or subtle motion.
+- Use `-q:v 3` for higher quality and larger files.
+- Use `-q:v 5` for smaller files.
+- Keep names predictable: `frame0001.jpg`, `frame0002.jpg`, etc.
+- Use WebP or AVIF only if the project already supports and tests those formats well.
 
-### Step 2 — Build the canvas component
+### Step 3 — Build a reusable client component
 
+Create a generic component instead of a one-off project-specific component.
 
-- The component must be a Client Component (`"use client"`).
-- Wrap the hero in a tall scroll container (`h-[300vh]` works well — gives 200vh of scroll-through space).
-- Use Framer Motion's `useScroll` with `offset: ["start start", "end end"]` to get a 0→1 progress value tied to the container.
-- Preload all frames as `Image` objects in a ref array on mount.
-- On `useMotionValueEvent`, calculate `Math.round(progress * (TOTAL_FRAMES - 1))` and draw the matching image to canvas inside `requestAnimationFrame`.
-- Size the canvas to `window.innerWidth × devicePixelRatio` for crisp rendering on retina/4K displays. Re-run on `resize`.
-- Implement "cover" math manually (canvas doesn't support CSS `object-fit`): if `canvasAspect > imgAspect`, fit by width and crop top/bottom; otherwise fit by height and crop sides.
+Suggested component API:
+```tsx
+<ScrollImageSequence
+  frameCount={120}
+  framePath={(index) => `/scroll-sequence/hero/frame${String(index + 1).padStart(4, "0")}.jpg`}
+  className="fixed inset-0 -z-10"
+  scrollTargetRef={containerRef}
+  reducedMotionFrame="last"
+/>
+```
 
+Implementation requirements:
+- The component must be a Client Component with `"use client"`.
+- Use a `<canvas>` for rendering frames.
+- Use `requestAnimationFrame` for drawing so visual updates line up with browser repaint.
+- Preload images into a ref so the same decoded images are reused.
+- Prefer `HTMLImageElement.decode()` when available so frames are ready before drawing.
+- Draw only when the frame index changes.
+- Cancel pending animation frames on unmount.
+- Handle `resize` and `devicePixelRatio` so the canvas stays sharp.
+- Use manual `object-fit: cover` math when drawing into canvas.
+- Keep the component reusable: no hard-coded section names, colors, copy, or frame totals.
 
-### Step 3 — Make the canvas a site-wide fixed background (optional but recommended)
+### Step 4 — Connect scroll progress
 
+Use the simplest scroll source that fits the project.
 
-If the last video frame should bleed seamlessly into the rest of the page:
-- Make the canvas `fixed inset-0` (NOT sticky/absolute) so it stays visible across the entire document, not just the hero.
-- Place it as the first child of the scroll container so it renders behind the rest of the DOM.
-- Below-the-fold sections (`SignatureDishes`, `About`, etc.) should NOT have their own background images — instead use a semi-transparent overlay div like `bg-forest/[0.82]` that tints the canvas through. Cards and text panels stay solid for readability.
-- After the user scrolls past the hero, `scrollYProgress` clamps at 1 and the canvas freezes on the final frame — which becomes a living wallpaper for everything below. Scroll up and the video reverses smoothly.
-- This eliminates the visible "seam" between hero and the next section because there is literally only one image source.
+For Framer Motion projects:
+- Use `useScroll` with a container ref.
+- Use `offset: ["start start", "end end"]` when the sequence should last for the full scroll container.
+- Convert progress from `0 → 1` into a frame index.
 
+For projects without Framer Motion:
+- Use `window.scrollY`, `getBoundingClientRect()`, and `requestAnimationFrame`.
+- Do not add heavy work directly inside the scroll event.
+- The scroll event should only schedule a render, not do all drawing work immediately.
 
-## Reference implementation in this repo
+Good default layout:
+```tsx
+<section ref={containerRef} className="relative min-h-[300vh]">
+  <ScrollImageSequence ... />
+  <div className="sticky top-0 flex min-h-screen items-center">
+    {/* hero content */}
+  </div>
+</section>
+```
 
+### Step 5 — Decide hero-only vs fixed background
 
-- Component: [`nanjing-house/components/hero.tsx`](nanjing-house/components/hero.tsx) — full canvas + scroll + fixed-background pattern
-- Frames: `nanjing-house/public/frames/frame0001.jpg` … `frame0142.jpg`
-- Section overlay treatment: [`nanjing-house/components/signature-dishes.tsx`](nanjing-house/components/signature-dishes.tsx) and [`nanjing-house/components/about.tsx`](nanjing-house/components/about.tsx)
+Use **hero-only** when the animation is only needed above the fold:
+- Canvas can be `absolute inset-0` or `sticky top-0 h-screen`.
+- Later sections can use their own backgrounds.
 
+Use **fixed background** when the final frame should blend into the rest of the page:
+- Canvas can be `fixed inset-0` with a safe z-index behind content.
+- Later sections should use translucent overlays instead of unrelated background images.
+- Text cards must still have enough contrast to be readable.
+- Once scroll progress reaches `1`, keep showing the final frame.
 
-## Pitfalls and tuning
+Do not force the fixed-background version into every project. Choose it only when it improves the design.
 
+## Accessibility and UX requirements
 
-- **Don't preload frames lazily** — the first scroll will stutter while images decode. Always preload all of them on mount.
-- **Don't re-decode on every draw** — keep `Image` objects (already decoded) in a ref, not just URLs.
-- **Don't drive frame draws directly from scroll events** — always go through `requestAnimationFrame` so paints align with monitor refresh.
-- **Watch the file size** — JPEG q:v 3 looks great but can be heavy. For a long video, drop to q:v 5 or extract at lower fps (`-vf fps=24`) to keep total under ~25 MB.
-- **Mobile**: `position: fixed` works on iOS but the rendering can flicker during momentum-scroll. Test on a real device. If it's bad, fall back to a regular auto-playing video on mobile via a media query.
+Always support reduced motion:
+- Check `prefers-reduced-motion`.
+- Show a static first frame, final frame, or normal image instead of scroll animation.
+- Do not make important information depend only on motion.
+
+Always support mobile:
+- Test on a real phone when possible.
+- Use fewer/smaller frames on mobile if the sequence is heavy.
+- If `position: fixed` flickers on mobile, use a hero-only canvas or static fallback.
+- Avoid blocking the first meaningful content while loading a huge sequence.
+
+Always protect readability:
+- Add overlays when text sits over busy frames.
+- Keep text panels solid or semi-solid.
+- Make sure the design still works on the brightest and darkest frames.
+
+## Performance rules
+
+Claude Code must keep the animation smooth and avoid page jank:
+- Do not preload frames lazily if the first scroll would stutter.
+- Do not decode the same image repeatedly.
+- Do not update React state for every scroll frame.
+- Do not do expensive layout reads and writes in the same scroll tick.
+- Do not animate layout-heavy properties when opacity or transform would work.
+- Use `requestAnimationFrame` for visual updates.
+- Break up heavy loading work so the page does not freeze.
+- Draw only the current frame, not every frame.
+- Measure the final result in the browser before saying it is done.
+
+## Claude Code workflow for this pattern
+
+Before writing code:
+1. Read `CLAUDE.md`, `project_specs.md`, and the existing files.
+2. Add the animation plan to `project_specs.md`.
+3. Explain which files will change and why.
+4. Wait for approval.
+
+When coding:
+1. Create a reusable scroll image sequence component.
+2. Add or document the frame extraction command.
+3. Wire the component into the correct page or section.
+4. Add reduced-motion and mobile fallback behavior.
+5. Keep all names generic unless the current project clearly needs specific names.
+
+Before responding:
+1. Run `npm run build`.
+2. Run `npm run dev` if practical and check the page.
+3. Report exactly what was tested.
+4. If the animation was not tested on a real mobile device, say that clearly.
+
+## Common mistakes to avoid
+
+- Do not copy paths from another project.
+- Do not reference old demo components that do not exist in the current repo.
+- Do not hard-code `TOTAL_FRAMES` inside a component if it should be passed as a prop.
+- Do not assume every project uses Framer Motion.
+- Do not make the whole page wait for 30 MB of images before showing any content.
+- Do not hide text contrast problems with a beautiful but unreadable background.
+- Do not say the animation is smooth until it has been tested in the browser.
 
 
 ---

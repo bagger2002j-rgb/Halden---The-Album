@@ -94,9 +94,6 @@ export default function StorySection() {
           transition={{ duration: 1.0, delay: 1.0, ease: EASE }}
           className="mt-16 flex flex-col items-center gap-6"
         >
-          <p className="text-[10px] tracking-[0.5em] uppercase text-white/50">
-            Et album fra Zkrutrekkerzidd
-          </p>
           <a
             href="#"
             className="group inline-flex items-center gap-2 border-b border-white/30 pb-1 text-sm tracking-[0.28em] uppercase text-white/85 hover:text-white hover:border-white transition-colors"

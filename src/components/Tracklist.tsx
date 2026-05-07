@@ -41,11 +41,11 @@ function TrackRow({
       style={{ opacity, x, filter }}
       className="group relative border-b border-white/10"
     >
-      <div className="flex items-baseline gap-6 py-5 md:py-6 px-1 transition-colors duration-500 group-hover:bg-white/[0.03]">
-        <span className="font-serif text-xs tracking-[0.3em] text-white/35 tabular-nums w-8">
+      <div className="flex items-baseline gap-4 py-2 md:py-6 px-1 transition-colors duration-500 group-hover:bg-white/[0.03]">
+        <span className="font-serif text-xs tracking-[0.3em] text-white/35 tabular-nums w-6 md:w-8">
           {String(index + 1).padStart(2, "0")}
         </span>
-        <span className="font-serif italic text-xl md:text-2xl lg:text-3xl text-white/85 leading-tight text-balance">
+        <span className="font-serif italic text-base md:text-2xl lg:text-3xl text-white/85 leading-tight text-balance">
           {title}
         </span>
       </div>
@@ -58,23 +58,8 @@ function TrackRow({
 }
 
 export default function Tracklist({ progress }: Props) {
-  const headerOpacity = useTransform(progress, [0.55, 0.65], [0, 1]);
-  const headerY = useTransform(progress, [0.55, 0.65], [20, 0]);
-
   return (
     <div className="w-full max-w-xl">
-      <motion.div
-        style={{ opacity: headerOpacity, y: headerY }}
-        className="mb-8 md:mb-10"
-      >
-        <p className="text-[10px] tracking-[0.4em] uppercase text-white/40 mb-3">
-          Sporliste
-        </p>
-        <h3 className="font-serif text-3xl md:text-4xl text-white tracking-tight">
-          Et album fra <em className="font-serif italic text-white/55">Zkrutrekkerzidd</em>
-        </h3>
-      </motion.div>
-
       <ol className="border-t border-white/10">
         {tracks.map((title, i) => (
           <TrackRow key={title} index={i} title={title} progress={progress} />
