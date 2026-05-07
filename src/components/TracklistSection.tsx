@@ -97,7 +97,7 @@ export default function TracklistSection() {
           </motion.div>
 
           {/* Tracklist — right side, over the full-bleed image */}
-          <div className="absolute right-0 md:right-[6vw] top-[35%] md:top-1/2 md:-translate-y-1/2 w-[90vw] md:w-[42vw] max-w-[580px] px-6 md:px-0 pointer-events-auto z-20 max-h-[65vh] md:max-h-none overflow-y-auto">
+          <div className="absolute right-0 md:right-[6vw] top-[35%] md:top-1/2 md:-translate-y-1/2 w-[90vw] md:w-[42vw] max-w-[580px] px-6 md:px-0 pointer-events-auto z-20">
             <Tracklist progress={scrollYProgress} />
           </div>
         </div>
